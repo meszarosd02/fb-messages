@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script>
+    
+  </script>
+  <title>Stats</title>
+  
+  <style>
+    #messageTable {
+      table-layout: fixed; /* Enforces fixed cell sizes */
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-10">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="card mb-4 bg-info text-dark text-center">
+              <div class="card-header">Összes üzenet</div>
+              <div class="card-body">
+                <h3 class="card-title" th:text="|${totalMessage}|"></h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card mb-4 bg-info text-dark text-center">
+              <div class="card-header">Üzenetek naponta</div>
+              <div class="card-body">
+                <h3 class="card-title" th:text="|${messagePerDay}|"></h3>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-2">
+            <input type="date" name="from" id="fromDate" >
+          </div>
+          <div class="col-md-2">
+            <input type="date" name="to" id="toDate">
+          </div>
+          <div class="col-md-2">
+            <button onclick="postDates()">Küldés</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <canvas id="test"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="row">
+          <div class="col-md-12">
+            <table class="table">
+              <thead>
+                <th>Résztvevő</th>
+                <th>Üzenetek</th>
+              </thead>
+              <tbody id="participantBody">
+                <tr th:each="p : ${participants}">
+                  <td th:text="${p.name}"></td>
+                  <td th:text="${p.count}"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <table class="table">
+              <thead>
+                <th>Résztvevő</th>
+                <th>Adott reakció</th>
+              </thead>
+              <tbody id="giveReactBody">
+                <tr th:each="p : ${givenReactions}">
+                  <td th:text="${p.name}"></td>
+                  <td th:text="${p.count}"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-4">
+        <p class="text-dark">Talált</p>
+      </div>
+      <div class="col-md-4">
+        <p class="text-dark">Oldalak száma</p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <nav aria-label="...">
+          <ul class="pagination" id="pages">
+            
+          </ul>
+        </nav>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <table class="table" id="messageTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Üzenet</th>
+              <th>Küldő</th>
+              <th>Idő</th>
+            </tr>
+          </thead>
+          <tbody id="messageBody">
+            
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <nav aria-label="...">
+          <ul class="pagination" id="pages">
+            
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+<script th:inline="javascript">
+  function test(){
+    alert("teszt")
+  }
+  let from = document.getElementById("fromDate")
+  let to = document.getElementById("toDate")
+  from.min = [[${startDate}]]
+  from.max = [[${endDate}]]
+  from.value = [[${startDate}]]
+  to.min = [[${startDate}]]
+  to.max = [[${endDate}]]
+  to.value = [[${endDate}]]
+  
+  let totalPages = 0
+  let currentPage = 1
+  let currentDate = ""
+  let pageList = []
+  
+  $(document).on("click", ".page-link", function(e){
+    e.preventDefault();
+    const page = $(this).data("page");
+    if(page >= 1 && page <= totalPages){
+      currentPage = page
+      postOneDate(currentDate, currentPage)
+    }
+  })
+  
+  function pageNumbers(){
+    pageList[0] = Math.max(1, currentPage - 1)
+    pageList[1] = Math.max(2, currentPage)
+    pageList[2] = Math.max(3, currentPage + 1)
+    pageList[3] = Math.max(totalPages - 2, currentPage - 1)
+    pageList[4] = Math.max(totalPages - 1, currentPage)
+    pageList[5] = Math.max(totalPages, currentPage + 1)
+  }
+  
+  function inflatePagination(){
+    $("#pages").empty();
+    const prevDisabled = currentPage === 1 ? "disabled" : "";
+    $("#pages").append(`
+      <li class="page-item ${prevDisabled}">
+              <a href="#" class="page-link" data-page=${currentPage - 1}>Előző</a>
+            </li>
+    `);
+    for(let i = 1;i<totalPages;i++){
+      const active = i === currentPage ? "active" : "";
+      $("#pages").append(`
+      <li class="page-item ${active}">
+              <a href="#" class="page-link" data-page=${i}>${i}</a>
+            </li>
+      `);
+    }
+    
+    const nextDisabled = currentPage === totalPages ? "disabled" : "";
+    $("#pages").append(`
+      <li class="page-item ${nextDisabled}">
+              <a href="#" class="page-link" data-page=${currentPage + 1}>Következő</a>
+            </li>
+    `);
+  }
+  
+  function postDates(){
+    $.ajax(
+    {
+      url: "/api/messages/by_day_range",
+      type: "GET",
+      data: {start: from.value, end: to.value},
+      success: function(messages){
+        console.log(messages)
+        myChart.data.labels = Object.keys(messages)
+        myChart.data.datasets[0].data = Object.values(messages)
+        myChart.update('active')
+      }
+    }
+    )
+  }
+  function postOneDate(date, page){
+    $.ajax(
+    {
+      url: "/api/messages/by_date",
+      type: "GET",
+      data: {date: date, page: page},
+      success: function(messages){
+        console.log(messages);
+        currentPage = page
+        inflateTableWithMessages(messages);
+        console.log(pageList)
+      }
+    }
+    )
+  }
+  function inflateTableWithMessages(messages){
+    $("#messageBody").empty()
+    if(messages["data"].length > 0){
+      totalPages = messages["totalPages"]
+      inflatePagination();
+      messages["data"].forEach(function(message) {
+        console.log(message);
+        const d = new Date(message.timestamp)
+        const time = d.toLocaleString('hu-HU', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        $("#messageBody").append(
+        `<tr>
+            <td>${message.id}</td>
+            <td>${message.message}</td>
+            <td>${message.senderName}</td>
+            <td>${time}</td>
+          </tr>`
+          )
+        });
+      }
+    }
+  </script>
+  <script th:inline="javascript">
+    let ctx = document.getElementById("test").getContext("2d");
+    const jsonData = [[${messageByDay}]]
+    const labels = Object.keys(jsonData)
+    const dataValues = Object.values(jsonData)
+    let myChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+        {
+          label: "üzenetek",
+          data: dataValues,
+          backgroundColor: "rgba(239,207,227,0.6)",
+        }
+        ],
+      },
+      options: {
+        onClick: (e) => {
+          const canvasPosition = myChart.getElementsAtEventForMode(
+          e,
+          "nearest",
+          {intersect: true},
+          false
+          )
+          
+          if(canvasPosition.length){
+            const i = canvasPosition[0].index
+            currentDate = myChart.data.labels[i]
+            postOneDate(currentDate, 1)
+          }
+        }
+      }
+    });
+  </script>
+  </html>
